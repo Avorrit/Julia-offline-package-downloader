@@ -1,0 +1,96 @@
+name: Sync Julia Depot
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_list:
+        description: 'Package names (space-separated)'
+        required: true
+        default: 'Example'
+      julia_version:
+        description: 'Julia version'
+        required: true
+        default: '1.11.9'
+
+jobs:
+  sync-depot:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+
+      - name: Ensure depot-build branch exists
+        shell: bash
+        run: |
+          git fetch origin
+          if ! git ls-remote --heads origin depot-build | grep depot-build; then
+            git checkout --orphan depot-build
+            git rm -rf .
+            git commit --allow-empty -m "Init depot-build"
+            git push origin depot-build
+            git checkout main
+          fi
+
+      - name: Set JULIA_DEPOT_PATH to depot-build
+        shell: pwsh
+        run: |
+          echo "JULIA_DEPOT_PATH=$env:GITHUB_WORKSPACE\depot_repo" >> $env:GITHUB_ENV
+
+      - name: Checkout depot-build branch directly
+        uses: actions/checkout@v4
+        with:
+          ref: depot-build
+          path: depot_repo
+
+      - name: Configure Git in depot_repo
+        shell: bash
+        working-directory: depot_repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ inputs.julia_version }}
+
+      - name: Track large binaries with Git LFS
+        shell: bash
+        working-directory: depot_repo
+        run: |
+          git lfs install
+          git lfs track "*.dll" "*.so" "*.dylib" "*.a" "*.exe"
+          git add .gitattributes
+          git commit -m "Track binary files" || echo "Already tracked"
+
+      - name: Install packages directly into depot-build
+        shell: julia --color=yes --project=@. {0}
+        run: |
+          using Pkg
+          ENV["JULIA_DEPOT_PATH"] = ENV["GITHUB_WORKSPACE"] * "\\depot_repo"
+          Pkg.add(split("${{ inputs.package_list }}"))
+
+      - name: Commit and push to depot-build
+        shell: bash
+        working-directory: depot_repo
+        run: |
+          git add .
+          if ! git diff --staged --quiet; then
+            git commit -m "Update depot: ${{ inputs.package_list }}"
+            git push origin depot-build
+          else
+            echo "NOTHING TO COMMIT"
+          fi
+
+      - name: Write log to main branch
+        if: always()
+        shell: bash
+        run: |
+          echo "Workflow: ${{ github.workflow }}" > workflow_log.txt
+          echo "Status: ${{ job.status }}" >> workflow_log.txt
+          echo "Time: $(date)" >> workflow_log.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add workflow_log.txt
+          git commit -m "Update log" || echo "No log changes"
+          git push origin main
