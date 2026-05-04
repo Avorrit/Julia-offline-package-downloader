@@ -1,4 +1,5 @@
 # Julia Offline Depot Builder
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ابزاری برای دانلود پکیج‌های جولیا جهت استفادهٔ آفلاین با کمک گیت‌هاب اکشنز.
 
@@ -37,13 +38,19 @@ julia
 ## 📦 افزودن پکیج جدید
 
 ۱. ورک‌فلو را دوباره با نام پکیج جدید اجرا کنید.
-۲. در سیستم خود دستور `git pull` را اجرا کنید (مطابق مرحلهٔ ۶ بالا).
+
+۲. پوشه .julia را به صورت زیر به گیت متصل کنید:
+```cmd
+cd C:\Users\USER\.julia
+git init
+git config core.longpaths true
+git remote add origin https://github.com/USERNAME/REPO.git
+git fetch origin depot-build
+git checkout -f -b depot-build origin/depot-build
+```
 
 ## ⚠️ نکات
 
 - پهنای باند رایگان Git LFS ماهانه ۱ گیگابایت است.
 - ورک‌فلو روی ویندوز اجرا می‌شود و فایل‌ها با سیستم‌عامل ویندوز سازگار هستند.
 
-## 📄 مجوز
-
-MIT
