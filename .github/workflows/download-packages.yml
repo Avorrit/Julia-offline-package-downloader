@@ -50,14 +50,20 @@ jobs:
         with:
           version: ${{ inputs.julia_version }}
 
-      - name: Install packages without any precompilation
+      - name: Install packages directly into depot_repo
         shell: bash
         env:
           JULIA_DEPOT_PATH: ${{ github.workspace }}\depot_repo
-          JULIA_PKG_PRECOMPILE_AUTO: "0" 
+          JULIA_PKG_PRECOMPILE_AUTO: "0"
         run: |
           julia -e 'using Pkg; Pkg.add(split(raw"""${{ inputs.package_list }}"""))'
-          
+
+      - name: Remove compiled folder
+        shell: bash
+        run: |
+          rm -rf depot_repo/compiled
+          echo "compiled/" >> depot_repo/.gitignore
+
       - name: Force commit all changes
         shell: bash
         working-directory: depot_repo
